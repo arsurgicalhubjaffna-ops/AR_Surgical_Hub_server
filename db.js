@@ -93,6 +93,28 @@ async function setupDatabase() {
             )
         `);
 
+        await query(`
+            CREATE TABLE IF NOT EXISTS categories (
+                id VARCHAR(255) PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Migration: Add image_url to categories if missing
+        try {
+            if (process.env.DATABASE_URL) {
+                await query('ALTER TABLE categories ADD COLUMN IF NOT EXISTS image_url TEXT');
+            } else {
+                await query('ALTER TABLE categories ADD COLUMN image_url TEXT');
+            }
+            console.log('✅ Column image_url verified for categories');
+        } catch (e) {
+            // Column likely already exists or table doesn't exist yet (unlikely)
+        }
+
         // 2. Create Roles
         const roles = ['admin', 'customer'];
         for (const role of roles) {
