@@ -147,9 +147,64 @@ async function setupDatabase() {
                 console.log(`✅ Created default admin: ${adminEmail}`);
             }
         }
-        console.log('✅ Database setup completed successfully.');
+        await seedDatabase();
+        console.log('✅ Database setup and seeding completed successfully.');
     } catch (err) {
         console.error('❌ Database setup failed:', err.message);
+    }
+}
+
+async function seedDatabase() {
+    console.log('🌱 Checking for sample data...');
+    try {
+        const crypto = require('crypto');
+
+        // 1. Seed Categories
+        const { rows: existingCats } = await query('SELECT count(*) as count FROM categories');
+        if (parseInt(existingCats[0].count) === 0) {
+            console.log('📂 Seeding categories...');
+            const categories = [
+                { name: 'Diagnostic Instruments', desc: 'High-precision tools for clinical diagnosis.', img: 'https://images.unsplash.com/photo-1584982324671-93959baa1264?w=400' },
+                { name: 'Surgical Equipment', desc: 'Critical tools for general and specialized surgery.', img: 'https://images.unsplash.com/photo-1579154341098-e4e158cc7f55?w=400' },
+                { name: 'Dental Supplies', desc: 'Professional dental care and surgery equipment.', img: 'https://images.unsplash.com/photo-1588776814546-1ffce47267a5?w=400' },
+                { name: 'Laboratory Tools', desc: 'Advanced equipment for medical research and testing.', img: 'https://images.unsplash.com/photo-1581093196277-9f608ed1c58e?w=400' }
+            ];
+            for (const cat of categories) {
+                await query(
+                    'INSERT INTO categories (id, name, description, image_url) VALUES ($1, $2, $3, $4)',
+                    [crypto.randomUUID(), cat.name, cat.desc, cat.img]
+                );
+            }
+        }
+
+        // 2. Seed Products
+        const { rows: existingProds } = await query('SELECT count(*) as count FROM products');
+        if (parseInt(existingProds[0].count) === 0) {
+            console.log('📦 Seeding products...');
+            const { rows: cats } = await query('SELECT id, name FROM categories');
+
+            const products = [
+                { name: 'Digital Stethoscope', price: 299.99, stock: 45, cat: 'Diagnostic Instruments', img: 'https://images.unsplash.com/photo-1584982324671-93959baa1264?w=500' },
+                { name: 'Surgical Scalpel Set', price: 89.50, stock: 120, cat: 'Surgical Equipment', img: 'https://images.unsplash.com/photo-1579154341098-e4e158cc7f55?w=500' },
+                { name: 'Professional Otoscope', price: 150.00, stock: 30, cat: 'Diagnostic Instruments', img: 'https://images.unsplash.com/photo-1581595219315-a187dd40c322?w=500' },
+                { name: 'Dental Mirror Kit', price: 35.00, stock: 200, cat: 'Dental Supplies', img: 'https://images.unsplash.com/photo-1588776814546-1ffce47267a5?w=500' },
+                { name: 'Microscope Model-X1', price: 1200.00, stock: 12, cat: 'Laboratory Tools', img: 'https://images.unsplash.com/photo-1581093196277-9f608ed1c58e?w=500' }
+            ];
+
+            for (const prod of products) {
+                const catId = cats.find(c => c.name === prod.cat)?.id;
+                if (catId) {
+                    await query(
+                        'INSERT INTO products (id, name, description, price, stock, category_id, image_url) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+                        [crypto.randomUUID(), prod.name, `Professional grade ${prod.name.toLowerCase()}.`, prod.price, prod.stock, catId, prod.img]
+                    );
+                }
+            }
+        }
+
+        console.log('✨ Seeding check completed.');
+    } catch (err) {
+        console.error('❌ Seeding failed:', err.message);
     }
 }
 
