@@ -63,15 +63,37 @@ if (process.env.DATABASE_URL) {
         });
     };
 
-    module.exports = { db, query };
 }
 
 // ── DATABASE SETUP & SEEDING ────────────────────────────
 async function setupDatabase() {
     try {
-        console.log('🌱 Setting up database roles and admin...');
+        console.log('🌱 Starting database setup...');
 
-        // 1. Create Roles
+        // 1. Create essential tables if they don't exist
+        await query(`
+            CREATE TABLE IF NOT EXISTS roles (
+                id VARCHAR(255) PRIMARY KEY,
+                name VARCHAR(255) UNIQUE NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id VARCHAR(255) PRIMARY KEY,
+                role_id VARCHAR(255) REFERENCES roles(id),
+                full_name VARCHAR(255) NOT NULL,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                phone VARCHAR(50),
+                password_hash TEXT NOT NULL,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // 2. Create Roles
         const roles = ['admin', 'customer'];
         for (const role of roles) {
             const { rows } = await query('SELECT id FROM roles WHERE name = $1', [role]);
@@ -82,7 +104,7 @@ async function setupDatabase() {
             }
         }
 
-        // 2. Create Default Admin
+        // 3. Create Default Admin
         const adminEmail = process.env.ADMIN_EMAIL || 'admin@arsurgical.com';
         const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
 
@@ -94,18 +116,26 @@ async function setupDatabase() {
 
             // Get admin role id
             const { rows: roleRes } = await query('SELECT id FROM roles WHERE name = $1', ['admin']);
-            const adminRoleId = roleRes[0].id;
-
-            await query(
-                'INSERT INTO users (id, full_name, email, password_hash, role_id) VALUES ($1, $2, $3, $4, $5)',
-                [crypto.randomUUID(), 'System Admin', adminEmail, hashedPassword, adminRoleId]
-            );
-            console.log(`✅ Created default admin: ${adminEmail}`);
+            if (roleRes.length > 0) {
+                const adminRoleId = roleRes[0].id;
+                await query(
+                    'INSERT INTO users (id, full_name, email, password_hash, role_id) VALUES ($1, $2, $3, $4, $5)',
+                    [crypto.randomUUID(), 'System Admin', adminEmail, hashedPassword, adminRoleId]
+                );
+                console.log(`✅ Created default admin: ${adminEmail}`);
+            }
         }
+        console.log('✅ Database setup completed successfully.');
     } catch (err) {
         console.error('❌ Database setup failed:', err.message);
     }
 }
 
-// Initial setup
-setupDatabase();
+// Initial setup removed from here as it's called in index.js
+
+// Ensure exports include setupDatabase
+if (process.env.DATABASE_URL) {
+    module.exports = { query, setupDatabase };
+} else {
+    module.exports = { db, query, setupDatabase };
+}
