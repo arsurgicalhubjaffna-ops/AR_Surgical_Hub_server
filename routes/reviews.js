@@ -7,7 +7,7 @@ const crypto = require('crypto');
 router.get('/:productId', async (req, res) => {
     try {
         const { rows } = await db.query(
-            'SELECT r.*, u.full_name FROM product_reviews r JOIN users u ON r.user_id = u.id WHERE r.product_id = ? ORDER BY r.created_at DESC',
+            'SELECT r.*, u.full_name FROM product_reviews r JOIN users u ON r.user_id = u.id WHERE r.product_id = $1 ORDER BY r.created_at DESC',
             [req.params.productId]
         );
         res.json(rows);
@@ -22,7 +22,7 @@ router.post('/', async (req, res) => {
     try {
         const { product_id, user_id, rating, comment } = req.body;
         const { rows } = await db.query(
-            'INSERT INTO product_reviews (id, product_id, user_id, rating, comment) VALUES (?, ?, ?, ?, ?) RETURNING *',
+            'INSERT INTO product_reviews (id, product_id, user_id, rating, comment) VALUES ($1, $2, $3, $4, $5) RETURNING *',
             [crypto.randomUUID(), product_id, user_id, rating, comment]
         );
         res.status(201).json(rows[0]);

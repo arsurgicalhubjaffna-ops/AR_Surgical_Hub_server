@@ -39,7 +39,7 @@ router.post('/products', async (req, res) => {
     try {
         const { name, description, price, stock, category_id, image_url } = req.body;
         const { rows } = await db.query(
-            'INSERT INTO products (id, name, description, price, stock, category_id, image_url) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *',
+            'INSERT INTO products (id, name, description, price, stock, category_id, image_url) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
             [crypto.randomUUID(), name, description, price, stock, category_id, image_url]
         );
         res.status(201).json(rows[0]);
@@ -53,7 +53,7 @@ router.put('/products/:id', async (req, res) => {
     try {
         const { name, description, price, stock, category_id, image_url, is_active } = req.body;
         await db.query(
-            'UPDATE products SET name=?, description=?, price=?, stock=?, category_id=?, image_url=?, is_active=? WHERE id=?',
+            'UPDATE products SET name=$1, description=$2, price=$3, stock=$4, category_id=$5, image_url=$6, is_active=$7 WHERE id=$8',
             [name, description, price, stock, category_id, image_url, is_active ?? 1, req.params.id]
         );
         res.json({ message: 'Product updated' });
@@ -65,7 +65,7 @@ router.put('/products/:id', async (req, res) => {
 // DELETE /api/admin/products/:id
 router.delete('/products/:id', async (req, res) => {
     try {
-        await db.query('DELETE FROM products WHERE id=?', [req.params.id]);
+        await db.query('DELETE FROM products WHERE id=$1', [req.params.id]);
         res.json({ message: 'Product deleted' });
     } catch (err) {
         res.status(500).json({ error: 'Failed to delete product' });
@@ -88,7 +88,7 @@ router.get('/orders', async (req, res) => {
 router.put('/orders/:id/status', async (req, res) => {
     try {
         const { status } = req.body;
-        await db.query('UPDATE orders SET status=? WHERE id=?', [status, req.params.id]);
+        await db.query('UPDATE orders SET status=$1 WHERE id=$2', [status, req.params.id]);
         res.json({ message: 'Order status updated' });
     } catch (err) {
         res.status(500).json({ error: 'Failed to update order' });

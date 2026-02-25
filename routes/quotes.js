@@ -7,7 +7,7 @@ router.post('/', async (req, res) => {
     try {
         const { message, user_id } = req.body;
         const { rows } = await db.query(
-            'INSERT INTO quotes (id, user_id, message) VALUES (?, ?, ?) RETURNING id',
+            'INSERT INTO quotes (id, user_id, message) VALUES ($1, $2, $3) RETURNING id',
             [crypto.randomUUID(), user_id, message]
         );
         res.status(201).json(rows[0]);

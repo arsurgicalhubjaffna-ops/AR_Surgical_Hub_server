@@ -12,15 +12,15 @@ router.post('/register', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Check if user already exists
-        const { rows: existingUser } = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+        const { rows: existingUser } = await db.query('SELECT * FROM users WHERE email = $1', [email]);
         if (existingUser.length > 0) return res.status(400).json({ error: 'User already exists' });
 
         // Get customer role id
-        const roleResult = await db.query('SELECT id FROM roles WHERE name = ?', ['customer']);
+        const roleResult = await db.query('SELECT id FROM roles WHERE name = $1', ['customer']);
         const roleId = roleResult.rows[0].id;
 
         const { rows } = await db.query(
-            'INSERT INTO users (id, full_name, email, password_hash, phone, role_id) VALUES (?, ?, ?, ?, ?, ?) RETURNING id, full_name, email',
+            'INSERT INTO users (id, full_name, email, password_hash, phone, role_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, full_name, email',
             [crypto.randomUUID(), full_name, email, hashedPassword, phone, roleId]
         );
         res.status(201).json(rows[0]);
@@ -34,7 +34,10 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        const { rows } = await db.query('SELECT u.*, r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.email = ?', [email]);
+        const { rows } = await db.query(
+            'SELECT u.*, r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.email = $1',
+            [email]
+        );
 
         if (rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
 

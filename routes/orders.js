@@ -12,14 +12,14 @@ router.post('/', async (req, res) => {
         await db.query('BEGIN');
 
         const { rows } = await db.query(
-            'INSERT INTO orders (id, user_id, total_amount, shipping_address, payment_method) VALUES (?, ?, ?, ?, ?) RETURNING id',
+            'INSERT INTO orders (id, user_id, total_amount, shipping_address, payment_method) VALUES ($1, $2, $3, $4, $5) RETURNING id',
             [crypto.randomUUID(), user_id || null, total_amount, shipping_address, payment_method]
         );
         const order_id = rows[0].id;
 
         for (const item of items) {
             await db.query(
-                'INSERT INTO order_items (id, order_id, product_id, quantity, price) VALUES (?, ?, ?, ?, ?)',
+                'INSERT INTO order_items (id, order_id, product_id, quantity, price) VALUES ($1, $2, $3, $4, $5)',
                 [crypto.randomUUID(), order_id, item.product_id, item.quantity, item.price]
             );
         }

@@ -65,3 +65,47 @@ if (process.env.DATABASE_URL) {
 
     module.exports = { db, query };
 }
+
+// ── DATABASE SETUP & SEEDING ────────────────────────────
+async function setupDatabase() {
+    try {
+        console.log('🌱 Setting up database roles and admin...');
+
+        // 1. Create Roles
+        const roles = ['admin', 'customer'];
+        for (const role of roles) {
+            const { rows } = await query('SELECT id FROM roles WHERE name = $1', [role]);
+            if (rows.length === 0) {
+                const roleId = role === 'admin' ? 'admin-role-id' : 'customer-role-id';
+                await query('INSERT INTO roles (id, name) VALUES ($1, $2)', [roleId, role]);
+                console.log(`✅ Created role: ${role}`);
+            }
+        }
+
+        // 2. Create Default Admin
+        const adminEmail = process.env.ADMIN_EMAIL || 'admin@arsurgical.com';
+        const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+
+        const { rows: adminRows } = await query('SELECT id FROM users WHERE email = $1', [adminEmail]);
+        if (adminRows.length === 0) {
+            const bcrypt = require('bcryptjs');
+            const crypto = require('crypto');
+            const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+            // Get admin role id
+            const { rows: roleRes } = await query('SELECT id FROM roles WHERE name = $1', ['admin']);
+            const adminRoleId = roleRes[0].id;
+
+            await query(
+                'INSERT INTO users (id, full_name, email, password_hash, role_id) VALUES ($1, $2, $3, $4, $5)',
+                [crypto.randomUUID(), 'System Admin', adminEmail, hashedPassword, adminRoleId]
+            );
+            console.log(`✅ Created default admin: ${adminEmail}`);
+        }
+    } catch (err) {
+        console.error('❌ Database setup failed:', err.message);
+    }
+}
+
+// Initial setup
+setupDatabase();
