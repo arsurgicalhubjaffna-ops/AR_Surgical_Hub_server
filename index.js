@@ -44,7 +44,7 @@ const clientBuildPath = path.join(__dirname, '..', 'client', 'dist');
 app.use(express.static(clientBuildPath));
 
 // All non-API routes → React app (client-side routing)
-app.get('*', (req, res) => {
+app.get(/.*/, (req, res) => {
     res.sendFile(path.join(clientBuildPath, 'index.html'));
 });
 
