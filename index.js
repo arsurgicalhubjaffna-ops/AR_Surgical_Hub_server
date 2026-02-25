@@ -38,14 +38,9 @@ const adminRoutes = require('./routes/admin');
 const { requireAdmin } = require('./middleware/auth');
 app.use('/api/admin', requireAdmin, adminRoutes);
 
-// ── SERVE REACT FRONTEND (Production) ──────────────────
-// Serves the built React app from client/dist
-const clientBuildPath = path.join(__dirname, '..', 'client', 'dist');
-app.use(express.static(clientBuildPath));
-
-// All non-API routes → React app (client-side routing)
-app.get(/.*/, (req, res) => {
-    res.sendFile(path.join(clientBuildPath, 'index.html'));
+// ── API STATUS ──────────────────────────────────────────
+app.get('/', (req, res) => {
+    res.json({ status: 'AR Surgical Hub API is running', env: process.env.NODE_ENV });
 });
 
 // ── ERROR HANDLING ──────────────────────────────────────
