@@ -117,4 +117,43 @@ router.get('/categories', async (req, res) => {
     }
 });
 
+// POST /api/admin/categories
+router.post('/categories', async (req, res) => {
+    try {
+        const { name, description, image_url } = req.body;
+        const { rows } = await db.query(
+            'INSERT INTO categories (id, name, description, image_url) VALUES ($1, $2, $3, $4) RETURNING *',
+            [crypto.randomUUID(), name, description, image_url]
+        );
+        res.status(201).json(rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to create category' });
+    }
+});
+
+// PUT /api/admin/categories/:id
+router.put('/categories/:id', async (req, res) => {
+    try {
+        const { name, description, image_url } = req.body;
+        await db.query(
+            'UPDATE categories SET name=$1, description=$2, image_url=$3 WHERE id=$4',
+            [name, description, image_url, req.params.id]
+        );
+        res.json({ message: 'Category updated' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update category' });
+    }
+});
+
+// DELETE /api/admin/categories/:id
+router.delete('/categories/:id', async (req, res) => {
+    try {
+        // Prevent deletion if products exist? (Skip for now as per simplicity, or just delete)
+        await db.query('DELETE FROM categories WHERE id=$1', [req.params.id]);
+        res.json({ message: 'Category deleted' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to delete category' });
+    }
+});
+
 module.exports = router;
