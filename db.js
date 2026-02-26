@@ -46,9 +46,10 @@ if (process.env.DATABASE_URL) {
     });
 
     // SQLite query helper - converts $1, $2 → ? for SQLite compatibility
+    // Also handles RETURNING clause by simulating it with a follow-up SELECT
     query = (text, params) => {
         return new Promise((resolve, reject) => {
-            const sql = text.replace(/\$\d+/g, '?');
+            let sql = text.replace(/\$\d+/g, '?');
 
             if (sql.trim().toUpperCase().startsWith('SELECT')) {
                 db.all(sql, params, (err, rows) => {
@@ -56,9 +57,33 @@ if (process.env.DATABASE_URL) {
                     else resolve({ rows });
                 });
             } else {
-                db.run(sql, params, function (err) {
-                    if (err) reject(err);
-                    else resolve({ rows: [], lastID: this.lastID, changes: this.changes });
+                // Check for RETURNING clause (PostgreSQL feature)
+                const returningMatch = sql.match(/RETURNING\s+(.+)$/i);
+                const cleanSql = returningMatch ? sql.replace(/RETURNING\s+.+$/i, '').trim() : sql;
+
+                db.run(cleanSql, params, function (err) {
+                    if (err) return reject(err);
+
+                    const lastID = this.lastID;
+                    const changes = this.changes;
+
+                    if (returningMatch) {
+                        // Detect the table name from the SQL
+                        const insertMatch = cleanSql.match(/INSERT\s+INTO\s+(\w+)/i);
+                        const updateMatch = cleanSql.match(/UPDATE\s+(\w+)/i);
+                        const tableName = (insertMatch && insertMatch[1]) || (updateMatch && updateMatch[1]);
+
+                        if (tableName && lastID) {
+                            db.all(`SELECT * FROM ${tableName} WHERE rowid = ?`, [lastID], (err2, rows) => {
+                                if (err2) return reject(err2);
+                                resolve({ rows: rows || [], lastID, changes });
+                            });
+                        } else {
+                            resolve({ rows: [], lastID, changes });
+                        }
+                    } else {
+                        resolve({ rows: [], lastID, changes });
+                    }
                 });
             }
         });
@@ -116,6 +141,62 @@ async function setupDatabase() {
                 is_active INTEGER DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await query(`
+            CREATE TABLE IF NOT EXISTS orders (
+                id VARCHAR(255) PRIMARY KEY,
+                user_id VARCHAR(255) REFERENCES users(id),
+                total_amount DECIMAL(12,2) NOT NULL,
+                status VARCHAR(50) DEFAULT 'pending',
+                shipping_address TEXT,
+                payment_method VARCHAR(50),
+                payment_status VARCHAR(50) DEFAULT 'unpaid',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await query(`
+            CREATE TABLE IF NOT EXISTS order_items (
+                id VARCHAR(255) PRIMARY KEY,
+                order_id VARCHAR(255) REFERENCES orders(id),
+                product_id VARCHAR(255) REFERENCES products(id),
+                quantity INTEGER NOT NULL,
+                price DECIMAL(12,2) NOT NULL
+            )
+        `);
+
+        await query(`
+            CREATE TABLE IF NOT EXISTS product_reviews (
+                id VARCHAR(255) PRIMARY KEY,
+                product_id VARCHAR(255) REFERENCES products(id),
+                user_id VARCHAR(255) REFERENCES users(id),
+                rating INTEGER NOT NULL,
+                comment TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await query(`
+            CREATE TABLE IF NOT EXISTS quotes (
+                id VARCHAR(255) PRIMARY KEY,
+                user_id VARCHAR(255) REFERENCES users(id),
+                message TEXT,
+                status VARCHAR(50) DEFAULT 'new',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await query(`
+            CREATE TABLE IF NOT EXISTS vacancies (
+                id VARCHAR(255) PRIMARY KEY,
+                career_id VARCHAR(255),
+                position VARCHAR(200) NOT NULL,
+                location VARCHAR(150),
+                salary_range VARCHAR(100),
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
 
