@@ -9,6 +9,7 @@ const path = require('path');
 // =========================================================
 
 let query;
+let db;
 
 if (process.env.DATABASE_URL) {
     // ── POSTGRESQL (Railway Production) ──
@@ -36,7 +37,7 @@ if (process.env.DATABASE_URL) {
 
     const dbPath = path.join(__dirname, 'db.sqlite');
 
-    const db = new sqlite3.Database(dbPath, (err) => {
+    db = new sqlite3.Database(dbPath, (err) => {
         if (err) {
             console.error('Error connecting to SQLite:', err.message);
         } else {
@@ -98,6 +99,21 @@ async function setupDatabase() {
                 id VARCHAR(255) PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
                 description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await query(`
+            CREATE TABLE IF NOT EXISTS products (
+                id VARCHAR(255) PRIMARY KEY,
+                category_id VARCHAR(255) REFERENCES categories(id),
+                name VARCHAR(200) NOT NULL,
+                description TEXT,
+                price DECIMAL(12,2) NOT NULL,
+                stock INTEGER DEFAULT 0,
+                image_url TEXT,
+                is_active INTEGER DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
